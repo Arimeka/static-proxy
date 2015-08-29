@@ -4,7 +4,6 @@ import (
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
 	"static-proxy/settings"
 	"text/template"
@@ -110,11 +109,11 @@ func Cache(upstreamJobs chan *Job, upstreamResults chan *Job) (chan *Job, chan *
 			case job := <-jobs:
 				cachedPath := "cache" + string(filepath.Separator) + job.Filename
 				if isCached(cachedPath) { // cache hit
-					log.Printf("cache hit: %s", job.Filename)
+					log.Printf("Cache hit: %s", job.Filename)
 					job.Result = cachedPath
 					results <- job
 				} else { // cache miss
-					log.Printf("cache miss: %s", job.Filename)
+					log.Printf("Cache miss: %s", job.Filename)
 					upstreamJobs <- job
 				}
 
@@ -126,12 +125,4 @@ func Cache(upstreamJobs chan *Job, upstreamResults chan *Job) (chan *Job, chan *
 	}()
 
 	return jobs, results
-}
-
-func isCached(cachedPath string) bool {
-	if _, err := os.Stat(cachedPath); err == nil {
-		return true
-	} else {
-		return false
-	}
 }

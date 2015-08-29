@@ -4,8 +4,9 @@ import (
 	"gopkg.in/amz.v3/aws"
 	"gopkg.in/amz.v3/s3"
 	"log"
-	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 )
 
 func WorkerPool(n int) (jobs chan *Job, results chan *Job) {
@@ -30,9 +31,55 @@ func Worker(jobs chan *Job, results chan *Job) {
 }
 
 func Delivering(filename string, bucketConfig map[interface{}]interface{}) string {
-	var fullpath string = ""
-	dir := filepath.Dir(filename)
+	var (
+		fullpath      string
+		clearFilename string
+		clearDir      string
+	)
 
+	if needConvering(filename) {
+		resizeRegexp := regexp.MustCompile("s\\/.+\\/")
+		clearFilename = resizeRegexp.ReplaceAllString(filename, "/")
+		gravityRegexp := regexp.MustCompile("gr\\/.+\\/")
+		clearFilename = gravityRegexp.ReplaceAllString(clearFilename, "/")
+		clearFilename = strings.TrimLeft(clearFilename, "/")
+		clearDir = filepath.Dir(clearFilename)
+
+		originalFilePath := "cache" + string(filepath.Separator) + clearFilename
+
+		if !isCached(originalFilePath) {
+			originalFile, err := getFromS3(bucketConfig, clearFilename)
+			if err != nil {
+				log.Printf("Delivering: %s: %s", filename, err)
+				return fullpath
+			} else {
+				originalFilePath = createFile(originalFile, clearDir, clearFilename)
+			}
+
+		}
+
+		fullpath, err := Convert(filename, originalFilePath)
+		if err != nil {
+			return ""
+		} else {
+			return fullpath
+		}
+	} else {
+		dir := filepath.Dir(filename)
+
+		file, err := getFromS3(bucketConfig, filename)
+		if err != nil {
+			log.Printf("Delivering: %s: %s", filename, err)
+			return fullpath
+		} else {
+			fullpath = createFile(file, dir, filename)
+		}
+	}
+
+	return fullpath
+}
+
+func getFromS3(bucketConfig map[interface{}]interface{}, filename string) (*[]byte, error) {
 	auth := aws.Auth{
 		AccessKey: bucketConfig["access_key_id"].(string),
 		SecretKey: bucketConfig["secret_access_key"].(string),
@@ -42,33 +89,23 @@ func Delivering(filename string, bucketConfig map[interface{}]interface{}) strin
 	connection := s3.New(auth, euwest)
 	bucket, err := connection.Bucket(bucketConfig["bucket"].(string))
 	if err != nil {
-		log.Println(err)
-	} else {
-		file, err := bucket.Get(filename)
-
-		if err != nil {
-			log.Println(err)
-		} else {
-			if dir != "." {
-				os.MkdirAll("cache"+string(filepath.Separator)+dir, 0777)
-			}
-
-			fullpath = "cache" + string(filepath.Separator) + filename
-
-			fi, err := os.Create(fullpath)
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer func() {
-				if err := fi.Close(); err != nil {
-					log.Fatal(err)
-				}
-			}()
-
-			if _, err := fi.Write(file); err != nil {
-				log.Fatal(err)
-			}
-		}
+		return nil, err
 	}
-	return fullpath
+
+	file, err := bucket.Get(filename)
+
+	if err != nil {
+		return nil, err
+	}
+	return &file, nil
+}
+
+func needConvering(filename string) bool {
+	str, err := regexp.MatchString("((\\/)?s\\/.+\\/.+)|((\\/)?gr\\/.+\\/.+)", filename)
+	if err != nil {
+		log.Println(err)
+		return false
+	} else {
+		return str
+	}
 }
