@@ -47,18 +47,17 @@ func (s Server) Handle() http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, req *http.Request) {
+		var path string
 		vars := mux.Vars(req)
 		filename := vars["filename"]
 
-		if req.Host == "foobar" {
-			name = "foobar"
-		} else {
-			name = "localhost"
-		}
+		name = req.Host
 
-		request := &Request{Job: &Job{Filename: filename, BucketConfig: s.S3Config.Host[name]}, ResultChan: make(chan string)}
-		s.Requests <- request
-		path := <-request.ResultChan
+		if s.S3Config.Host[name] != nil {
+			request := &Request{Job: &Job{Filename: filename, BucketConfig: s.S3Config.Host[name]}, ResultChan: make(chan string)}
+			s.Requests <- request
+			path = <-request.ResultChan
+		}
 		if path != "" {
 			http.ServeFile(w, req, path)
 		} else {
