@@ -5,7 +5,6 @@ import (
 	"gopkg.in/amz.v3/s3"
 	"log"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
@@ -38,11 +37,11 @@ func Delivering(filename string, bucketConfig map[interface{}]interface{}) strin
 	)
 
 	if needConvering(filename) {
-		resizeRegexp := regexp.MustCompile("s\\/.+\\/")
-		clearFilename = resizeRegexp.ReplaceAllString(filename, "/")
-		gravityRegexp := regexp.MustCompile("gr\\/.+\\/")
-		clearFilename = gravityRegexp.ReplaceAllString(clearFilename, "/")
-		clearFilename = strings.TrimLeft(clearFilename, "/")
+		a := strings.Split(filename, "/")
+		a = append(a[:(len(a)-5)], a[(len(a)-1):]...)
+
+		clearFilename = strings.Join(a, "/")
+
 		clearDir = filepath.Dir(clearFilename)
 
 		originalFilePath := "cache" + string(filepath.Separator) + clearFilename
@@ -101,11 +100,11 @@ func getFromS3(bucketConfig map[interface{}]interface{}, filename string) (*[]by
 }
 
 func needConvering(filename string) bool {
-	str, err := regexp.MatchString("((\\/)?s\\/.+\\/.+)|((\\/)?gr\\/.+\\/.+)", filename)
-	if err != nil {
-		log.Println(err)
-		return false
+	a := strings.Split(filename, "/")
+
+	if a[len(a)-3] == "s" && a[len(a)-5] == "gr" {
+		return true
 	} else {
-		return str
+		return false
 	}
 }

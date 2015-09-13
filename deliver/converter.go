@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -38,36 +37,24 @@ func Convert(filename, originalFile string) (convertedFile string, err error) {
 	if isBadRatio(originalFile) {
 		return "", errors.New("Convert: bad aspect ratio: " + filename)
 	} else {
-		resizeRegexp := regexp.MustCompile("s\\/[^\\/]+\\/")
-		gravityRegexp := regexp.MustCompile("gr\\/[^\\/]+\\/")
+		a := strings.Split(filename, "/")
 
-		resizeOption := resizeRegexp.FindAllString(filename, 1)
-		gravityOption := gravityRegexp.FindAllString(filename, 1)
+		resizeOptionString := a[len(a)-2]
+		gravityOptionString := a[len(a)-4]
 
-		if (len(resizeOption) == 0) && (len(gravityOption) == 0) {
+		if (len(resizeOptionString) == 0) || (len(gravityOptionString) == 0) {
 			return "", errors.New("Convert: bad convert options: " + filename)
 		}
 
-		if len(gravityOption) > 0 {
-			gravityOptionString := gravityOption[0]
-			gravityOptionString = strings.TrimLeft(gravityOptionString, "gr/")
-			gravityOptionString = strings.TrimRight(gravityOptionString, "/")
-			transformOptions["gravity"] = getGravityType(gravityOptionString)
-		}
+		transformOptions["gravity"] = getGravityType(gravityOptionString)
 
-		if len(resizeOption) > 0 {
-			resizeOptionString := resizeOption[0]
-			resizeOptionString = strings.TrimLeft(resizeOptionString, "s/")
-			resizeOptionString = strings.TrimRight(resizeOptionString, "/")
-
-			if sizeCount, ok := stripSize(resizeOptionString); ok {
-				switch sizeCount {
-				case 2:
-					transformOptions["resize"] = resizeOptionString + "^"
-					transformOptions["crop"] = resizeOptionString + "+0+0"
-				case 1:
-					transformOptions["resize"] = resizeOptionString + ">"
-				}
+		if sizeCount, ok := stripSize(resizeOptionString); ok {
+			switch sizeCount {
+			case 2:
+				transformOptions["resize"] = resizeOptionString + "^"
+				transformOptions["crop"] = resizeOptionString + "+0+0"
+			case 1:
+				transformOptions["resize"] = resizeOptionString + ">"
 			}
 		}
 
