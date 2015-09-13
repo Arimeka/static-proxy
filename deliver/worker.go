@@ -1,9 +1,13 @@
 package deliver
 
 import (
-	"gopkg.in/amz.v3/aws"
-	"gopkg.in/amz.v3/s3"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/defaults"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"io"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -24,6 +28,9 @@ func Worker(jobs chan *Job, results chan *Job) {
 		filename := job.Filename
 		bucketConfig := job.BucketConfig.(map[interface{}]interface{})
 
+		defaults.DefaultConfig.Credentials = credentials.NewStaticCredentials(bucketConfig["access_key_id"].(string), bucketConfig["secret_access_key"].(string), "")
+		defaults.DefaultConfig.Region = aws.String("eu-central-1")
+
 		job.Result = Delivering(filename, bucketConfig)
 		results <- job
 	}
@@ -33,7 +40,6 @@ func Delivering(filename string, bucketConfig map[interface{}]interface{}) strin
 	var (
 		fullpath      string
 		clearFilename string
-		clearDir      string
 	)
 
 	if needConvering(filename) {
@@ -42,19 +48,14 @@ func Delivering(filename string, bucketConfig map[interface{}]interface{}) strin
 
 		clearFilename = strings.Join(a, "/")
 
-		clearDir = filepath.Dir(clearFilename)
-
 		originalFilePath := "cache" + string(filepath.Separator) + clearFilename
 
 		if !isCached(originalFilePath) {
-			originalFile, err := getFromS3(bucketConfig, clearFilename)
+			_, err := getFromS3(bucketConfig, clearFilename)
 			if err != nil {
 				log.Printf("Delivering: %s: %s", filename, err)
 				return fullpath
-			} else {
-				originalFilePath = createFile(originalFile, clearDir, clearFilename)
 			}
-
 		}
 
 		fullpath, err := Convert(filename, originalFilePath)
@@ -64,45 +65,64 @@ func Delivering(filename string, bucketConfig map[interface{}]interface{}) strin
 			return fullpath
 		}
 	} else {
-		dir := filepath.Dir(filename)
-
-		file, err := getFromS3(bucketConfig, filename)
+		fullpath, err := getFromS3(bucketConfig, filename)
 		if err != nil {
 			log.Printf("Delivering: %s: %s", filename, err)
 			return fullpath
-		} else {
-			fullpath = createFile(file, dir, filename)
 		}
 	}
 
 	return fullpath
 }
 
-func getFromS3(bucketConfig map[interface{}]interface{}, filename string) (*[]byte, error) {
-	auth := aws.Auth{
-		AccessKey: bucketConfig["access_key_id"].(string),
-		SecretKey: bucketConfig["secret_access_key"].(string),
-	}
-	euwest := aws.EUCentral
-
-	connection := s3.New(auth, euwest)
-	bucket, err := connection.Bucket(bucketConfig["bucket"].(string))
+func getFromS3(bucketConfig map[interface{}]interface{}, filename string) (string, error) {
+	svc := s3.New(nil)
+	result, err := svc.GetObject(&s3.GetObjectInput{
+		Bucket: aws.String(bucketConfig["bucket"].(string)),
+		Key:    aws.String(filename),
+	})
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	file, err := bucket.Get(filename)
+	dir := filepath.Dir(filename)
 
+	if dir != "." {
+		os.MkdirAll("cache"+string(filepath.Separator)+dir, 0755)
+	}
+
+	fullpath := "cache" + string(filepath.Separator) + filename
+
+	file, err := os.Create(fullpath)
 	if err != nil {
-		return nil, err
+		log.Fatal("Failed to create file", err)
 	}
-	return &file, nil
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	if _, err := io.Copy(file, result.Body); err != nil {
+		log.Fatal("Failed to copy object to file", err)
+	}
+	result.Body.Close()
+
+	return fullpath, nil
 }
 
 func needConvering(filename string) bool {
 	a := strings.Split(filename, "/")
 
 	if a[len(a)-3] == "s" && a[len(a)-5] == "gr" {
+		return true
+	} else {
+		return false
+	}
+}
+
+func isCached(cachedPath string) bool {
+	if _, err := os.Stat(cachedPath); err == nil {
 		return true
 	} else {
 		return false
