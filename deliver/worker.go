@@ -115,7 +115,7 @@ func getFromS3(bucketConfig map[string]string, filename string) (fullpath string
 func needConvering(filename string) bool {
 	a := strings.Split(filename, "/")
 
-	if len(a) == 5 && a[len(a)-3] == "s" && a[len(a)-5] == "gr" {
+	if len(a) >= 5 && a[len(a)-3] == "s" && a[len(a)-5] == "gr" {
 		return true
 	} else {
 		return false
