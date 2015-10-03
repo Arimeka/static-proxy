@@ -12,7 +12,7 @@ import (
 type Job struct {
 	Filename     string
 	Result       string
-	BucketConfig interface{}
+	BucketConfig map[string]string
 }
 
 type Request struct {
@@ -22,19 +22,14 @@ type Request struct {
 
 type Server struct {
 	Requests chan *Request
-	S3Config settings.S3
+	S3Config *settings.S3Config
+	Template *template.Template
 }
 
-func New(pool int, s3Config settings.S3) Server {
+func New(pool int) http.Handler {
 	jobs, results := WorkerPool(pool)
 	jobs, results = Cache(jobs, results)
 	requests := RequestMux(jobs, results)
-
-	return Server{Requests: requests, S3Config: s3Config}
-}
-
-func (s Server) Handle() http.HandlerFunc {
-	var name string
 
 	path, err := filepath.Abs("./templates/404.html")
 	if err != nil {
@@ -46,24 +41,30 @@ func (s Server) Handle() http.HandlerFunc {
 		log.Fatal(templateError)
 	}
 
-	return func(w http.ResponseWriter, req *http.Request) {
-		var path string
-		vars := mux.Vars(req)
-		filename := vars["filename"]
+	return Server{Requests: requests, S3Config: settings.Config.S3Config, Template: tmpl}
+}
 
-		name = req.Host
+func (s Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	var (
+		name string
+		path string
+	)
 
-		if s.S3Config.Host[name] != nil {
-			request := &Request{Job: &Job{Filename: filename, BucketConfig: s.S3Config.Host[name]}, ResultChan: make(chan string)}
-			s.Requests <- request
-			path = <-request.ResultChan
-		}
-		if path != "" {
-			http.ServeFile(w, req, path)
-		} else {
-			w.WriteHeader(404)
-			tmpl.Execute(w, nil)
-		}
+	vars := mux.Vars(req)
+	filename := vars["filename"]
+
+	name = req.Host
+
+	if s.S3Config.Hosts[name] != nil {
+		request := &Request{Job: &Job{Filename: filename, BucketConfig: s.S3Config.Hosts[name]}, ResultChan: make(chan string)}
+		s.Requests <- request
+		path = <-request.ResultChan
+	}
+	if path != "" {
+		http.ServeFile(w, req, path)
+	} else {
+		w.WriteHeader(404)
+		s.Template.Execute(w, nil)
 	}
 }
 

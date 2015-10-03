@@ -1,19 +1,21 @@
 package main
 
 import (
-	"github.com/gorilla/handlers"
+	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/justinas/alice"
 	"log"
 	"net/http"
-	"os"
 	"runtime"
 	"static-proxy/deliver"
 	"static-proxy/settings"
+	"static-proxy/utils"
 	"static-proxy/viewer"
+	"time"
 )
 
 const (
-	VERSION = "0.0.1"
+	VERSION = "0.0.2"
 )
 
 func init() {
@@ -23,19 +25,14 @@ func init() {
 func main() {
 	settings.Setup()
 
-	config, err := settings.SetDefaults(settings.BuildMain(settings.Path))
+	err := settings.Build()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(fmt.Errorf("Unable to load configuration, %v", err))
 	}
 
-	s3Config, err := settings.BuildS3(settings.S3Path)
-	if err != nil {
-		log.Fatal(err)
-	}
+	runtime.GOMAXPROCS(settings.Config.NumCPU)
 
-	runtime.GOMAXPROCS(config.NumCPU)
-
-	printBanner(config)
+	printBanner(settings.Config)
 
 	fs := http.FileServer(http.Dir("./static"))
 
@@ -44,21 +41,21 @@ func main() {
 	serveSingle("/robots.txt", "./static/robots.txt")
 
 	router := mux.NewRouter()
+	commonHandlers := alice.New(loggingHandler, recoverHandler)
 
 	router.PathPrefix("/static/").Handler(viewer.ServeStatic(http.StripPrefix("/static/", fs))).Methods("GET")
 	router.NotFoundHandler = http.HandlerFunc(viewer.NotFoundPage())
 
-	server := deliver.New(config.Workers, s3Config)
-	router.HandleFunc("/{filename:.+}", server.Handle()).Methods("GET")
+	server := deliver.New(settings.Config.Workers)
 
-	http.Handle("/", handlers.LoggingHandler(os.Stdout, router))
+	router.Handle("/{filename:.+}", server).Methods("GET")
 
-	log.Fatal(http.ListenAndServe(config.Address+":"+config.Port, nil))
+	log.Fatal(http.ListenAndServe(settings.Config.Address+":"+settings.Config.Port, commonHandlers.Then(router)))
 }
 
-func printBanner(config settings.Settings) {
+func printBanner(config *settings.Settings) {
 	log.Println("StaticProxy", VERSION, "("+runtime.Version()+" "+runtime.GOOS+"/"+runtime.GOARCH+")")
-	log.Println("- environment:", settings.Env)
+	log.Println("- environment:", settings.AppSettings.GetString("env"))
 	log.Println("- numcpu:     ", config.NumCPU)
 	log.Println("listen", config.Address+":"+config.Port)
 }
@@ -67,4 +64,19 @@ func serveSingle(pattern string, filename string) {
 	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filename)
 	})
+}
+
+func loggingHandler(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		t1 := time.Now()
+		next.ServeHTTP(w, r)
+		t2 := time.Now()
+		log.Printf("%s - [%s] %q %v\n", utils.GetIpFromRequest(r), r.Method, r.URL.String(), t2.Sub(t1))
+	}
+
+	return http.HandlerFunc(fn)
+}
+
+func recoverHandler(next http.Handler) http.Handler {
+	return viewer.InternalErrorPage(next)
 }

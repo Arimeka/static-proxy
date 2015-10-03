@@ -26,9 +26,9 @@ func WorkerPool(n int) (jobs chan *Job, results chan *Job) {
 func Worker(jobs chan *Job, results chan *Job) {
 	for job := range jobs {
 		filename := job.Filename
-		bucketConfig := job.BucketConfig.(map[interface{}]interface{})
+		bucketConfig := job.BucketConfig
 
-		defaults.DefaultConfig.Credentials = credentials.NewStaticCredentials(bucketConfig["access_key_id"].(string), bucketConfig["secret_access_key"].(string), "")
+		defaults.DefaultConfig.Credentials = credentials.NewStaticCredentials(bucketConfig["access_key_id"], bucketConfig["secret_access_key"], "")
 		defaults.DefaultConfig.Region = aws.String("eu-central-1")
 
 		job.Result = Delivering(filename, bucketConfig)
@@ -36,10 +36,11 @@ func Worker(jobs chan *Job, results chan *Job) {
 	}
 }
 
-func Delivering(filename string, bucketConfig map[interface{}]interface{}) string {
+func Delivering(filename string, bucketConfig map[string]string) (fullpath string) {
 	var (
-		fullpath      string
-		clearFilename string
+		clearFilename    string
+		originalFilePath string
+		err              error
 	)
 
 	if needConvering(filename) {
@@ -48,41 +49,41 @@ func Delivering(filename string, bucketConfig map[interface{}]interface{}) strin
 
 		clearFilename = strings.Join(a, "/")
 
-		originalFilePath := "cache" + string(filepath.Separator) + clearFilename
+		originalFilePath = "cache" + string(filepath.Separator) + clearFilename
 
 		if !isCached(originalFilePath) {
-			_, err := getFromS3(bucketConfig, clearFilename)
+			_, err = getFromS3(bucketConfig, clearFilename)
 			if err != nil {
 				log.Printf("Delivering: %s: %s", filename, err)
-				return fullpath
+				return
 			}
 		}
 
-		fullpath, err := Convert(filename, originalFilePath)
+		fullpath, err = Convert(filename, originalFilePath)
 		if err != nil {
 			return ""
 		} else {
-			return fullpath
+			return
 		}
 	} else {
-		fullpath, err := getFromS3(bucketConfig, filename)
+		fullpath, err = getFromS3(bucketConfig, filename)
 		if err != nil {
 			log.Printf("Delivering: %s: %s", filename, err)
-			return fullpath
+			return
 		}
 	}
 
-	return fullpath
+	return
 }
 
-func getFromS3(bucketConfig map[interface{}]interface{}, filename string) (string, error) {
+func getFromS3(bucketConfig map[string]string, filename string) (fullpath string, err error) {
 	svc := s3.New(nil)
 	result, err := svc.GetObject(&s3.GetObjectInput{
-		Bucket: aws.String(bucketConfig["bucket"].(string)),
+		Bucket: aws.String(bucketConfig["bucket"]),
 		Key:    aws.String(filename),
 	})
 	if err != nil {
-		return "", err
+		return
 	}
 
 	dir := filepath.Dir(filename)
@@ -91,7 +92,7 @@ func getFromS3(bucketConfig map[interface{}]interface{}, filename string) (strin
 		os.MkdirAll("cache"+string(filepath.Separator)+dir, 0755)
 	}
 
-	fullpath := "cache" + string(filepath.Separator) + filename
+	fullpath = "cache" + string(filepath.Separator) + filename
 
 	file, err := os.Create(fullpath)
 	if err != nil {
@@ -108,13 +109,13 @@ func getFromS3(bucketConfig map[interface{}]interface{}, filename string) (strin
 	}
 	result.Body.Close()
 
-	return fullpath, nil
+	return
 }
 
 func needConvering(filename string) bool {
 	a := strings.Split(filename, "/")
 
-	if a[len(a)-3] == "s" && a[len(a)-5] == "gr" {
+	if len(a) == 5 && a[len(a)-3] == "s" && a[len(a)-5] == "gr" {
 		return true
 	} else {
 		return false
