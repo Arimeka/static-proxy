@@ -135,10 +135,14 @@ func stripSize(size string) (length int, result bool) {
 		return
 	}
 
-	if sizes[1] == "" {
+	if sizes[0] == "" || sizes[1] == "" {
 		length = 1
-		if _, err := strconv.Atoi(sizes[0]); err != nil {
-			return
+		for _, size := range sizes {
+			if size != "" {
+				if _, err := strconv.Atoi(size); err != nil {
+					return
+				}
+			}
 		}
 	} else {
 		for _, size := range sizes {
