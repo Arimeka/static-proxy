@@ -13,6 +13,7 @@ type Job struct {
 	Filename     string
 	Result       string
 	BucketConfig map[string]string
+	ValidSizes   []string
 }
 
 type Request struct {
@@ -21,9 +22,10 @@ type Request struct {
 }
 
 type Server struct {
-	Requests chan *Request
-	S3Config *settings.S3Config
-	Template *template.Template
+	Requests   chan *Request
+	S3Config   *settings.S3Config
+	ValidSizes *settings.ValidSizes
+	Template   *template.Template
 }
 
 func New(pool int) http.Handler {
@@ -41,7 +43,7 @@ func New(pool int) http.Handler {
 		log.Fatal(templateError)
 	}
 
-	return Server{Requests: requests, S3Config: settings.Config.S3Config, Template: tmpl}
+	return Server{Requests: requests, S3Config: settings.Config.S3Config, ValidSizes: settings.Config.ValidSizes, Template: tmpl}
 }
 
 func (s Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -56,7 +58,7 @@ func (s Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	name = req.Host
 
 	if s.S3Config.Hosts[name] != nil {
-		request := &Request{Job: &Job{Filename: filename, BucketConfig: s.S3Config.Hosts[name]}, ResultChan: make(chan string)}
+		request := &Request{Job: &Job{Filename: filename, BucketConfig: s.S3Config.Hosts[name], ValidSizes: s.ValidSizes.Sizes[name]}, ResultChan: make(chan string)}
 		s.Requests <- request
 		path = <-request.ResultChan
 	}

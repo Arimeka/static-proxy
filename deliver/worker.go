@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -27,16 +28,17 @@ func Worker(jobs chan *Job, results chan *Job) {
 	for job := range jobs {
 		filename := job.Filename
 		bucketConfig := job.BucketConfig
+		validSizes := job.ValidSizes
 
 		defaults.DefaultConfig.Credentials = credentials.NewStaticCredentials(bucketConfig["access_key_id"], bucketConfig["secret_access_key"], "")
 		defaults.DefaultConfig.Region = aws.String("eu-central-1")
 
-		job.Result = Delivering(filename, bucketConfig)
+		job.Result = Delivering(filename, bucketConfig, validSizes)
 		results <- job
 	}
 }
 
-func Delivering(filename string, bucketConfig map[string]string) (fullpath string) {
+func Delivering(filename string, bucketConfig map[string]string, validSizes []string) (fullpath string) {
 	var (
 		clearFilename    string
 		originalFilePath string
@@ -45,6 +47,12 @@ func Delivering(filename string, bucketConfig map[string]string) (fullpath strin
 
 	if needConvering(filename) {
 		a := strings.Split(filename, "/")
+
+		if sizeValid(a[len(a)-2], validSizes) == false {
+			log.Printf("Delivering: %s: %s: %s", filename, "invalid size", a[len(a)-2])
+			return ""
+		}
+
 		a = append(a[:(len(a)-5)], a[(len(a)-1):]...)
 
 		clearFilename = strings.Join(a, "/")
@@ -61,6 +69,7 @@ func Delivering(filename string, bucketConfig map[string]string) (fullpath strin
 
 		fullpath, err = Convert(filename, originalFilePath)
 		if err != nil {
+			log.Printf("Converting: %s: %s", filename, err)
 			return ""
 		} else {
 			return
@@ -69,7 +78,7 @@ func Delivering(filename string, bucketConfig map[string]string) (fullpath strin
 		fullpath, err = getFromS3(bucketConfig, filename)
 		if err != nil {
 			log.Printf("Delivering: %s: %s", filename, err)
-			return
+			return ""
 		}
 	}
 
@@ -116,6 +125,16 @@ func needConvering(filename string) bool {
 	a := strings.Split(filename, "/")
 
 	if len(a) >= 5 && a[len(a)-3] == "s" && a[len(a)-5] == "gr" {
+		return true
+	} else {
+		return false
+	}
+}
+
+func sizeValid(size string, sizes []string) bool {
+	sort.Strings(sizes)
+	i := sort.Search(len(sizes), func(i int) bool { return sizes[i] >= size })
+	if i < len(sizes) && sizes[i] == size {
 		return true
 	} else {
 		return false

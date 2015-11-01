@@ -10,16 +10,21 @@ import (
 )
 
 type Settings struct {
-	Address  string
-	Port     string
-	NumCPU   int
-	Workers  int
-	Scheme   string
-	S3Config *S3Config
+	Address    string
+	Port       string
+	NumCPU     int
+	Workers    int
+	Scheme     string
+	S3Config   *S3Config
+	ValidSizes *ValidSizes
 }
 
 type S3Config struct {
 	Hosts map[string]map[string]string
+}
+
+type ValidSizes struct {
+	Sizes map[string][]string
 }
 
 var (
@@ -92,6 +97,22 @@ func Build() (err error) {
 		return
 	}
 	Config.S3Config = s3Config
+
+	sizes := viper.New()
+	sizes.SetConfigName("sizes")
+	sizes.AddConfigPath("./")
+
+	err = sizes.ReadInConfig()
+	if err != nil {
+		return
+	}
+
+	mapSizes := &ValidSizes{}
+	err = sizes.UnmarshalKey(AppSettings.GetString("env"), mapSizes)
+	if err != nil {
+		return
+	}
+	Config.ValidSizes = mapSizes
 
 	return
 }
