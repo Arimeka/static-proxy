@@ -36,12 +36,12 @@ func main() {
 
 	fs := http.FileServer(http.Dir("./static"))
 
-	// Mandatory root-based resources
-	serveSingle("/favicon.ico", "./static/favicon.ico")
-	serveSingle("/robots.txt", "./static/robots.txt")
-
 	router := mux.NewRouter()
 	commonHandlers := alice.New(loggingHandler, recoverHandler)
+
+	// Mandatory root-based resources
+	serveSingle(router, "/favicon.ico", "./static/favicon.ico")
+	serveSingle(router, "/robots.txt", "./static/robots.txt")
 
 	router.PathPrefix("/static/").Handler(viewer.ServeStatic(http.StripPrefix("/static/", fs))).Methods("GET")
 	router.NotFoundHandler = http.HandlerFunc(viewer.NotFoundPage())
@@ -60,8 +60,8 @@ func printBanner(config *settings.Settings) {
 	log.Println("listen", config.Address+":"+config.Port)
 }
 
-func serveSingle(pattern string, filename string) {
-	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
+func serveSingle(router *mux.Router, pattern string, filename string) {
+	router.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filename)
 	})
 }

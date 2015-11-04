@@ -1,7 +1,7 @@
 development: &defaults
   sizes:
     localhost:5000:
-      ['250x250', '250x211', '640x430', '847x410', '320x380', '600x', 'x564']
+      ['250x250', '250x211', '640x430', '847x410', '320x380', '600x', 'x564', '560x']
 staging:
   <<: *defaults
 production:
