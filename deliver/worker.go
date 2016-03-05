@@ -29,6 +29,14 @@ func WorkerPool(n int) (jobs chan *Job, results chan *Job) {
 
 func Worker(jobs chan *Job, results chan *Job) {
 	for job := range jobs {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Printf("panic: %+v", err)
+				job.Result = ""
+				results <- job
+			}
+		}()
+
 		filename := job.Filename
 
 		if settings.Config.S3Config.Hosts[job.Host] == nil || settings.Config.ValidSizes.Sizes[job.Host] == nil {
@@ -54,6 +62,11 @@ func Delivering(filename string, bucketConfig map[string]string, validSizes []st
 
 	if fullCache() {
 		go func() {
+			defer func() {
+				if err := recover(); err != nil {
+					log.Printf("panic: %+v", err)
+				}
+			}()
 			for fullCache() {
 				flushOldest()
 			}

@@ -108,6 +108,14 @@ func Cache(upstreamJobs chan *Job, upstreamResults chan *Job) (chan *Job, chan *
 		for {
 			select {
 			case job := <-jobs:
+				defer func() {
+					if err := recover(); err != nil {
+						log.Printf("panic: %+v", err)
+						job.Result = ""
+						results <- job
+					}
+				}()
+
 				cachedPath := "cache" + string(filepath.Separator) + job.Filename
 				if isCached(cachedPath) { // cache hit
 					log.Printf("Cache hit: %s", job.Filename)
@@ -119,7 +127,6 @@ func Cache(upstreamJobs chan *Job, upstreamResults chan *Job) (chan *Job, chan *
 				}
 
 			case job := <-upstreamResults:
-				job.Result = job.Result
 				results <- job
 			}
 		}

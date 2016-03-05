@@ -31,7 +31,6 @@ func fullCache() bool {
 
 func flushOldest() error {
 	var result, stdErr bytes.Buffer
-	// find cache -type f -print0 | xargs -0 stat -f '%a %N' | sort
 
 	findC := exec.Command("find", "./cache", "-type", "f", "-print0")
 	findStdout, err := findC.StdoutPipe()
