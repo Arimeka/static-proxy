@@ -12,7 +12,6 @@ import (
 type Settings struct {
 	Address    string
 	Port       string
-	NumCPU     int
 	Workers    int
 	Scheme     string
 	S3Config   *S3Config

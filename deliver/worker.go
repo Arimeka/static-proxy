@@ -3,8 +3,11 @@ package deliver
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/defaults"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+
+	"static-proxy/settings"
+
 	"io"
 	"log"
 	"os"
@@ -27,11 +30,15 @@ func WorkerPool(n int) (jobs chan *Job, results chan *Job) {
 func Worker(jobs chan *Job, results chan *Job) {
 	for job := range jobs {
 		filename := job.Filename
-		bucketConfig := job.BucketConfig
-		validSizes := job.ValidSizes
 
-		defaults.DefaultConfig.Credentials = credentials.NewStaticCredentials(bucketConfig["access_key_id"], bucketConfig["secret_access_key"], "")
-		defaults.DefaultConfig.Region = aws.String("eu-central-1")
+		if settings.Config.S3Config.Hosts[job.Host] == nil || settings.Config.ValidSizes.Sizes[job.Host] == nil {
+			job.Result = ""
+			results <- job
+			continue
+		}
+
+		bucketConfig := settings.Config.S3Config.Hosts[job.Host]
+		validSizes := settings.Config.ValidSizes.Sizes[job.Host]
 
 		job.Result = Delivering(filename, bucketConfig, validSizes)
 		results <- job
@@ -53,7 +60,11 @@ func Delivering(filename string, bucketConfig map[string]string, validSizes []st
 			return ""
 		}
 
-		a = append(a[:(len(a)-5)], a[(len(a)-1):]...)
+		if len(a) >= 5 && a[len(a)-5] == "gr" {
+			a = append(a[:(len(a)-5)], a[(len(a)-1):]...)
+		} else {
+			a = append(a[:(len(a)-3)], a[(len(a)-1):]...)
+		}
 
 		clearFilename = strings.Join(a, "/")
 
@@ -71,22 +82,22 @@ func Delivering(filename string, bucketConfig map[string]string, validSizes []st
 		if err != nil {
 			log.Printf("Converting: %s: %s", filename, err)
 			return ""
-		} else {
-			return
 		}
-	} else {
-		fullpath, err = getFromS3(bucketConfig, filename)
-		if err != nil {
-			log.Printf("Delivering: %s: %s", filename, err)
-			return ""
-		}
+		return
+	}
+	fullpath, err = getFromS3(bucketConfig, filename)
+	if err != nil {
+		log.Printf("Delivering: %s: %s", filename, err)
+		return ""
 	}
 
 	return
 }
 
 func getFromS3(bucketConfig map[string]string, filename string) (fullpath string, err error) {
-	svc := s3.New(nil)
+	cred := credentials.NewStaticCredentials(bucketConfig["access_key_id"], bucketConfig["secret_access_key"], "")
+
+	svc := s3.New(session.New(), &aws.Config{Credentials: cred, Region: aws.String("eu-central-1")})
 	result, err := svc.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(bucketConfig["bucket"]),
 		Key:    aws.String(filename),
@@ -126,9 +137,12 @@ func needConvering(filename string) bool {
 
 	if len(a) >= 5 && a[len(a)-3] == "s" && a[len(a)-5] == "gr" {
 		return true
-	} else {
-		return false
 	}
+	if len(a) >= 3 && a[len(a)-3] == "s" {
+		return true
+	}
+
+	return false
 }
 
 func sizeValid(size string, sizes []string) bool {
@@ -136,15 +150,13 @@ func sizeValid(size string, sizes []string) bool {
 	i := sort.Search(len(sizes), func(i int) bool { return sizes[i] >= size })
 	if i < len(sizes) && sizes[i] == size {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 func isCached(cachedPath string) bool {
 	if _, err := os.Stat(cachedPath); err == nil {
 		return true
-	} else {
-		return false
 	}
+	return false
 }

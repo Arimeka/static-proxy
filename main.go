@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	VERSION = "0.0.2"
+	VERSION = "0.0.3"
 )
 
 func init() {
@@ -29,8 +29,6 @@ func main() {
 	if err != nil {
 		log.Fatal(fmt.Errorf("Unable to load configuration, %v", err))
 	}
-
-	runtime.GOMAXPROCS(settings.Config.NumCPU)
 
 	printBanner(settings.Config)
 
@@ -46,7 +44,7 @@ func main() {
 	router.PathPrefix("/static/").Handler(viewer.ServeStatic(http.StripPrefix("/static/", fs))).Methods("GET")
 	router.NotFoundHandler = http.HandlerFunc(viewer.NotFoundPage())
 
-	server := deliver.New(settings.Config.Workers)
+	server := deliver.New()
 
 	router.Handle("/{filename:.+}", server).Methods("GET")
 
@@ -56,7 +54,7 @@ func main() {
 func printBanner(config *settings.Settings) {
 	log.Println("StaticProxy", VERSION, "("+runtime.Version()+" "+runtime.GOOS+"/"+runtime.GOARCH+")")
 	log.Println("- environment:", settings.AppSettings.GetString("env"))
-	log.Println("- numcpu:     ", config.NumCPU)
+	log.Println("- numcpu:     ", runtime.GOMAXPROCS(-1))
 	log.Println("listen", config.Address+":"+config.Port)
 }
 

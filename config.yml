@@ -1,8 +1,6 @@
 development: &defaults
-  numcpu: 2
   workers: 10
 staging:
   <<: *defaults
-  numcpu:  1
 production:
-  numcpu: 1
+  <<: *defaults

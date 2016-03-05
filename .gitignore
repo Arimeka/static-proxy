@@ -1,6 +1,7 @@
 s3.yml
 /cache/*
 !/cache/.keep
+_vendor
 
 .DS_Store
 *.sublime-project

@@ -1,0 +1,8 @@
+gom 'github.com/gorilla/mux'
+gom 'github.com/justinas/alice'
+gom 'github.com/aws/aws-sdk-go/aws'
+gom 'github.com/aws/aws-sdk-go/aws/credentials'
+gom 'github.com/aws/aws-sdk-go/aws/defaults'
+gom 'github.com/aws/aws-sdk-go/service/s3'
+gom 'github.com/spf13/pflag'
+gom 'github.com/spf13/viper'

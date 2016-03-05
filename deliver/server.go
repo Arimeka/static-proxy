@@ -10,10 +10,9 @@ import (
 )
 
 type Job struct {
-	Filename     string
-	Result       string
-	BucketConfig map[string]string
-	ValidSizes   []string
+	Filename string
+	Result   string
+	Host     string
 }
 
 type Request struct {
@@ -22,13 +21,12 @@ type Request struct {
 }
 
 type Server struct {
-	Requests   chan *Request
-	S3Config   *settings.S3Config
-	ValidSizes *settings.ValidSizes
-	Template   *template.Template
+	Requests chan *Request
+	Template *template.Template
 }
 
-func New(pool int) http.Handler {
+func New() http.Handler {
+	pool := settings.Config.Workers
 	jobs, results := WorkerPool(pool)
 	jobs, results = Cache(jobs, results)
 	requests := RequestMux(jobs, results)
@@ -43,7 +41,7 @@ func New(pool int) http.Handler {
 		log.Fatal(templateError)
 	}
 
-	return Server{Requests: requests, S3Config: settings.Config.S3Config, ValidSizes: settings.Config.ValidSizes, Template: tmpl}
+	return Server{Requests: requests, Template: tmpl}
 }
 
 func (s Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -57,17 +55,18 @@ func (s Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	name = req.Host
 
-	if s.S3Config.Hosts[name] != nil {
-		request := &Request{Job: &Job{Filename: filename, BucketConfig: s.S3Config.Hosts[name], ValidSizes: s.ValidSizes.Sizes[name]}, ResultChan: make(chan string)}
+	if settings.Config.S3Config.Hosts[name] != nil {
+		request := &Request{Job: &Job{Filename: filename, Host: name}, ResultChan: make(chan string)}
 		s.Requests <- request
 		path = <-request.ResultChan
 	}
 	if path != "" {
 		http.ServeFile(w, req, path)
-	} else {
-		w.WriteHeader(404)
-		s.Template.Execute(w, nil)
+		return
 	}
+
+	w.WriteHeader(404)
+	s.Template.Execute(w, nil)
 }
 
 func RequestMux(jobs chan *Job, results chan *Job) chan *Request {

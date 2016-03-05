@@ -1,0 +1,8 @@
+gom 'github.com/gorilla/mux', :commit => '49c024275504f0341e5a9971eb7ba7fa3dc7af40'
+gom 'github.com/justinas/alice', :commit => '82db91fe6d1db4c070fed544cb5d0b5cc08fe276'
+gom 'github.com/aws/aws-sdk-go/aws', :commit => '84dd2369d1041b2c79c67bc81bba00636711d01b'
+gom 'github.com/aws/aws-sdk-go/aws/credentials', :commit => '84dd2369d1041b2c79c67bc81bba00636711d01b'
+gom 'github.com/aws/aws-sdk-go/aws/defaults', :commit => '84dd2369d1041b2c79c67bc81bba00636711d01b'
+gom 'github.com/aws/aws-sdk-go/service/s3', :commit => '84dd2369d1041b2c79c67bc81bba00636711d01b'
+gom 'github.com/spf13/pflag', :commit => '7f60f83a2c81bc3c3c0d5297f61ddfa68da9d3b7'
+gom 'github.com/spf13/viper', :commit => 'c975dc1b4eacf4ec7fdbf0873638de5d090ba323'
