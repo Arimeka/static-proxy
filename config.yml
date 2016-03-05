@@ -1,6 +1,9 @@
 development: &defaults
   workers: 10
+  cacheSize: 20480
 staging:
   <<: *defaults
+  cacheSize: 204800
 production:
   <<: *defaults
+  cacheSize: 10485760

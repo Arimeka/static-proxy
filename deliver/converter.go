@@ -28,7 +28,7 @@ var (
 	}
 )
 
-func Convert(filename, originalFile string) (convertedFile string, err error) {
+func Convert(filename, originalFile string) (string, error) {
 	var (
 		outBuff, errBuff bytes.Buffer
 		transformOptions = make(map[string]string)
@@ -36,52 +36,51 @@ func Convert(filename, originalFile string) (convertedFile string, err error) {
 
 	if isBadRatio(originalFile) {
 		return "", errors.New("Convert: bad aspect ratio: " + filename)
-	} else {
-		a := strings.Split(filename, "/")
+	}
+	a := strings.Split(filename, "/")
 
-		resizeOptionString := a[len(a)-2]
-		gravityOptionString := a[len(a)-4]
+	resizeOptionString := a[len(a)-2]
+	gravityOptionString := a[len(a)-4]
 
-		if (len(resizeOptionString) == 0) || (len(gravityOptionString) == 0) {
-			return "", errors.New("Convert: bad convert options: " + filename)
-		}
+	if (len(resizeOptionString) == 0) || (len(gravityOptionString) == 0) {
+		return "", errors.New("Convert: bad convert options: " + filename)
+	}
 
-		transformOptions["gravity"] = getGravityType(gravityOptionString)
+	transformOptions["gravity"] = getGravityType(gravityOptionString)
 
-		if sizeCount, ok := stripSize(resizeOptionString); ok {
-			switch sizeCount {
-			case 2:
-				transformOptions["resize"] = resizeOptionString + "^"
-				transformOptions["crop"] = resizeOptionString + "+0+0"
-			case 1:
-				transformOptions["resize"] = resizeOptionString + ">"
-			}
-		}
-
-		options := []string{originalFile}
-		for _, key := range order {
-			if value, ok := transformOptions[key]; ok {
-				options = append(options, "-"+key, value)
-			}
-		}
-
-		convertPath := "cache" + string(filepath.Separator) + filename
-		convertDir := filepath.Dir(convertPath)
-
-		os.MkdirAll(convertDir, 0777)
-
-		options = append(options, "-strip", "+repage", convertPath)
-
-		convert := exec.Command("convert", options...)
-		convert.Stdout = &outBuff
-		convert.Stderr = &errBuff
-
-		if convert.Run() != nil {
-			return "", errors.New("Convert: " + errBuff.String() + ": " + filename)
-		} else {
-			return convertPath, nil
+	if sizeCount, ok := stripSize(resizeOptionString); ok {
+		switch sizeCount {
+		case 2:
+			transformOptions["resize"] = resizeOptionString + "^"
+			transformOptions["crop"] = resizeOptionString + "+0+0"
+		case 1:
+			transformOptions["resize"] = resizeOptionString + ">"
 		}
 	}
+
+	options := []string{originalFile}
+	for _, key := range order {
+		if value, ok := transformOptions[key]; ok {
+			options = append(options, "-"+key, value)
+		}
+	}
+
+	convertPath := "cache" + string(filepath.Separator) + filename
+	convertDir := filepath.Dir(convertPath)
+
+	os.MkdirAll(convertDir, 0777)
+
+	options = append(options, "-strip", "+repage", convertPath)
+
+	convert := exec.Command("convert", options...)
+	convert.Stdout = &outBuff
+	convert.Stderr = &errBuff
+
+	if convert.Run() != nil {
+		return "", errors.New("Convert: " + errBuff.String() + ": " + filename)
+	}
+
+	return convertPath, nil
 }
 
 func isBadRatio(originalFile string) bool {

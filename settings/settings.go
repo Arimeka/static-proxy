@@ -13,6 +13,7 @@ type Settings struct {
 	Address    string
 	Port       string
 	Workers    int
+	CacheSize  int64
 	Scheme     string
 	S3Config   *S3Config
 	ValidSizes *ValidSizes

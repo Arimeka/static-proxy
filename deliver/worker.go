@@ -52,6 +52,14 @@ func Delivering(filename string, bucketConfig map[string]string, validSizes []st
 		err              error
 	)
 
+	if fullCache() {
+		go func() {
+			for fullCache() {
+				flushOldest()
+			}
+		}()
+	}
+
 	if needConvering(filename) {
 		a := strings.Split(filename, "/")
 
@@ -85,6 +93,7 @@ func Delivering(filename string, bucketConfig map[string]string, validSizes []st
 		}
 		return
 	}
+
 	fullpath, err = getFromS3(bucketConfig, filename)
 	if err != nil {
 		log.Printf("Delivering: %s: %s", filename, err)
