@@ -1,65 +1,39 @@
 package main
 
 import (
-	"recive"
+	"receive"
 
-	"github.com/julienschmidt/httprouter"
-	"github.com/Sirupsen/logrus"
-	"github.com/justinas/alice"
-	"github.com/justinas/nosurf"
-	"github.com/go-errors/errors"
+	"gopkg.in/gin-gonic/gin.v1"
 
 	"net/http"
 	"log"
 	"time"
-	"os"
 )
 
 type Server struct {
 	srv *http.Server
-	router *httprouter.Router
-
-	Log *logrus.Logger
+	engine *gin.Engine
 }
 
-func NewServer(logger *logrus.Logger, addr string) Server {
+func NewServer(addr string) Server {
+	router := gin.Default()
+	router.GET("/", receive.NewService(5*time.Second).Serve)
 
-
-	router := httprouter.New()
-
-
-	router.Handler("GET","/",recive.NewHandler(logger, 5*time.Second))
-
-	chain := alice.New(nosurf.NewPure).Then(router)
-
-	srv := &http.Server{
+	srv:= &http.Server{
 		ReadTimeout: 5 * time.Second,
 		WriteTimeout: 15 * time.Second,
 
 		Addr: addr,
-		Handler: chain,
+		Handler: router,
 	}
-
-	server := Server{
-		srv: srv,
-		router: router,
-		Log: logger,
+	return Server {
+		srv:srv,
+		engine: router,
 	}
-	router.PanicHandler = server.recover
-
-	return server
 }
 
 func main() {
-	logger := logrus.New()
-	logger.Out = os.Stdout
-	logger.Formatter = &logrus.TextFormatter{}
-
-	server := NewServer(logger, ":5000")
+	server := NewServer(":5000")
 
 	log.Fatal(server.srv.ListenAndServe())
-}
-
-func (server Server) recover(w http.ResponseWriter, r *http.Request, err interface{}) {
-	server.Log.Panic(errors.Wrap(err, 2).ErrorStack())
 }

@@ -1,4 +1,4 @@
-package recive
+package receive
 
 type File struct {
 	Body []byte

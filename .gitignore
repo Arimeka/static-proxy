@@ -1,9 +1,7 @@
 /cache/*
 !/cache/.keep
 
-vendor
-!/vendor/manifest
-
+vendor/src
 bin
 pkg
 
