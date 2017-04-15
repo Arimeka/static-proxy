@@ -5,6 +5,7 @@ vendor/src
 bin
 pkg
 
+.env
 .DS_Store
 *.sublime-project
 *.sublime-workspace

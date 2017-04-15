@@ -2,6 +2,7 @@ package cache
 
 import (
 	"errors"
+	"mime"
 	"os"
 	"time"
 )
@@ -26,6 +27,19 @@ type File struct {
 	err error `gorm:"-"`
 
 	file *os.File `gorm:"-"`
+}
+
+func (f *File) Parse(ff *os.File) error {
+	fi, err := os.Stat(ff.Name())
+	if err != nil {
+		return err
+	}
+
+	f.file = ff
+	f.Size = fi.Size()
+	f.ContentType = mime.TypeByExtension(f.Filename)
+
+	return nil
 }
 
 func (f *File) Open() error {

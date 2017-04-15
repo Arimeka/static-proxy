@@ -18,8 +18,11 @@ func NewStats(db *gorm.DB) (*Stats, error) {
 	if err := db.Model(&File{}).Count(&count).Error; err != nil {
 		return nil, err
 	}
-	if err := db.Raw("SELECT SUM(size) FROM files;").Row().Scan(&sum); err != nil {
-		return nil, err
+
+	if count > 0 {
+		if err := db.Raw("SELECT SUM(size) FROM files;").Row().Scan(&sum); err != nil {
+			return nil, err
+		}
 	}
 
 	return &Stats{

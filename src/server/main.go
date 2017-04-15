@@ -48,7 +48,9 @@ func main() {
 	}
 	server := NewServer(settings)
 
-	go log.Println(http.ListenAndServe(":6060", nil))
+	go func() {
+		log.Println(http.ListenAndServe(":6060", nil))
+	}()
 
 	log.Fatal(server.srv.ListenAndServe())
 }
