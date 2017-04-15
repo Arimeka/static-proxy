@@ -8,6 +8,7 @@ import (
 
 	"fmt"
 	"os"
+	"time"
 )
 
 func NewSettings() (Settings, error) {
@@ -24,9 +25,11 @@ func NewSettings() (Settings, error) {
 	v := viper.New()
 	v.SetEnvPrefix("cache")
 	v.BindEnv("limit")
-	v.SetDefault("limit", 15<<(10*2)) // 15 MB
+	v.SetDefault("limit", 15*constant.MB)
 	v.BindEnv("dir")
 	v.SetDefault("dir", "cache")
+	v.BindEnv("clear_duration")
+	v.SetDefault("clear_duration", 15*time.Minute)
 
 	conf := &Settings{}
 	if err := v.Unmarshal(conf); err != nil {
@@ -40,13 +43,27 @@ func NewSettings() (Settings, error) {
 	}
 	conf.DB = db
 
+	stats, err := NewStats(db)
+	if err != nil {
+		return *conf, fmt.Errorf("Failed calculate cache stats: %v", err)
+	}
+	stats.LimitSize = conf.StorageLimit
+	stats.CleanDuration = conf.ClearDuration
+	conf.Stats = stats
+
+	timer := time.NewTimer(stats.CleanDuration)
+	go stats.CacheWatcher(timer)
+
 	return *conf, nil
 }
 
 type Settings struct {
 	Env          constant.ServerMode `mapstructure:"-"`
-	StorageLimit uint64              `mapstructure:"limit"`
+	StorageLimit constant.ByteSize   `mapstructure:"limit"`
 	CacheDir     string              `mapstructure:"dir"`
 
-	DB *gorm.DB `mapstructure:"-"`
+	ClearDuration time.Duration `mapstructure:"clear_duration"`
+
+	DB    *gorm.DB `mapstructure:"-"`
+	Stats *Stats   `mapstructure:"-"`
 }

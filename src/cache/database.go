@@ -42,10 +42,11 @@ func NewDBConn() (*gorm.DB, error) {
 
 	db.AutoMigrate(&File{})
 	db.Model(&File{}).AddUniqueIndex("idx_file_name", "filename")
+	db.Model(&File{}).AddIndex("idx_file_deleted_updated", "deleted","updated_at")
 
-	if err := testData(db); err != nil {
-		return db, err
-	}
+	//if err := testData(db); err != nil {
+	//	return db, err
+	//}
 
 	return db, nil
 }
@@ -61,20 +62,12 @@ type Database struct {
 
 func testData(db *gorm.DB) error {
 	file1 := &File{
-		Filename: "cache/test.webm",
-		ContentType: "video/webm",
-		Size: 10891947,
-	}
-	file2 := &File{
-		Filename: "cache/%2Ftest%2Ftest.webm",
-		ContentType: "video/webm",
-		Size: 10891947,
+		Filename: "cache/saimoe-2012-12.jpg",
+		ContentType: "image/jpeg",
+		Size: 263961,
 	}
 
 	if err := db.Create(file1).Error; err != nil {
-		return err
-	}
-	if err := db.Create(file2).Error; err != nil {
 		return err
 	}
 	return nil

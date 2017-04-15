@@ -8,6 +8,7 @@ import (
 
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"path/filepath"
 )
 
@@ -46,6 +47,8 @@ func main() {
 		log.Fatal(err)
 	}
 	server := NewServer(settings)
+
+	go log.Println(http.ListenAndServe(":6060", nil))
 
 	log.Fatal(server.srv.ListenAndServe())
 }

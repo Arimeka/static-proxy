@@ -47,14 +47,16 @@ func (s Cache) Serve() {
 	err := db.Where("filename = ?", file.Filename).Limit(1).Find(file).Error
 	if err != nil {
 		file.err = err
+	} else if file.Deleted {
+		file.err = ErrDeleted
 	} else {
 		isDir, err := file.IsDir()
 		if err != nil {
 			file.err = err
-			db.Delete(file)
+			db.Model(file).UpdateColumn("deleted", true)
 		} else if isDir {
 			file.err = ErrDir
-			db.Delete(file)
+			db.Model(file).UpdateColumn("deleted", true)
 		} else {
 			db.Model(file).UpdateColumn("updated_at", time.Now())
 		}

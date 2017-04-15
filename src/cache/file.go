@@ -6,7 +6,10 @@ import (
 	"time"
 )
 
-var ErrDir = errors.New("Path is directory")
+var (
+	ErrDir     = errors.New("Path is directory")
+	ErrDeleted = errors.New("File marked as deleted")
+)
 
 type File struct {
 	ID uint `gorm:"primary_key"`
@@ -14,6 +17,8 @@ type File struct {
 	ContentType string
 	Size        int64
 	Filename    string
+
+	Deleted bool
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
