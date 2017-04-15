@@ -1,9 +1,12 @@
 package main
 
 import (
+	"constant"
 	"receive"
 
-	"cache"
+	"github.com/spf13/viper"
+
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,27 +29,44 @@ func NewSettings() (Settings, error) {
 		wrkDir = dir
 	}
 
-	return Settings{
-		WrkDir:       wrkDir,
-		ServerAddr:   ":5000",
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		Receiever: receive.Settings{
-			DeadlineTimeout: 5 * time.Second,
+	envS := os.Getenv("ENV")
+	if envS == "" {
+		envS = "development"
+	}
 
-			Cache: cache.Settings{
-				StorageLimit: 15 << (10 * 2), // 15 MB
-			},
-		},
-	}, nil
+	env, err := constant.ParseServerMode(envS)
+	if err != nil {
+		return Settings{}, err
+	}
+
+	v := viper.New()
+	v.SetEnvPrefix("server")
+	v.BindEnv("addr")
+	v.SetDefault("addr", ":5000")
+	v.BindEnv("readtimeout")
+	v.SetDefault("readtimeout", 5*time.Second)
+	v.BindEnv("writetimeout")
+	v.SetDefault("writetimeout", 15*time.Second)
+
+	conf := &Settings{}
+	if err = v.Unmarshal(conf); err != nil {
+		return *conf, fmt.Errorf("Invalid server config: %v", err)
+	}
+	conf.Env = env
+	conf.WrkDir = wrkDir
+
+	conf.Receiever, err = receive.NewSettings()
+
+	return *conf, err
 }
 
 type Settings struct {
-	WrkDir     string
-	ServerAddr string
+	Env        constant.ServerMode `mapstructure:"-"`
+	WrkDir     string              `mapstructure:"-"`
+	ServerAddr string              `mapstructure:"addr"`
 
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
+	ReadTimeout  time.Duration `mapstructure:"readtimeout"`
+	WriteTimeout time.Duration `mapstructure:"writetimeout"`
 
-	Receiever receive.Settings
+	Receiever receive.Settings `mapstructure:"-"`
 }
