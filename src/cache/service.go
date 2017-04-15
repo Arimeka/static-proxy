@@ -2,9 +2,9 @@ package cache
 
 import (
 	"context"
-	"mime"
 	"net/url"
 	"path/filepath"
+	"time"
 )
 
 func NewService(settings Settings, ctx context.Context, responseChan chan *File, filename string) Cache {
@@ -38,16 +38,26 @@ func (s Cache) Serve() {
 	default:
 	}
 
-	file := &File{
-		Filename: filepath.Join("./cache", url.PathEscape(s.Filename)),
-	}
-	file.ContentType = mime.TypeByExtension(file.Filename)
+	db := s.settings.DB
 
-	isDir, err := file.IsDir()
+	file := &File{
+		Filename: filepath.Join(s.settings.CacheDir, url.PathEscape(s.Filename)),
+	}
+
+	err := db.Where("filename = ?", file.Filename).Limit(1).Find(file).Error
 	if err != nil {
 		file.err = err
-	} else if isDir {
-		file.err = ErrDir
+	} else {
+		isDir, err := file.IsDir()
+		if err != nil {
+			file.err = err
+			db.Delete(file)
+		} else if isDir {
+			file.err = ErrDir
+			db.Delete(file)
+		} else {
+			db.Model(file).UpdateColumn("updated_at", time.Now())
+		}
 	}
 
 	select {

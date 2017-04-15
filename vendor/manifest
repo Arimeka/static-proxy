@@ -15,6 +15,12 @@
 			"path": "/etcd"
 		},
 		{
+			"importpath": "github.com/denisenkom/go-mssqldb",
+			"repository": "https://github.com/denisenkom/go-mssqldb",
+			"revision": "8e6115d5172422909579b49fd1fe0f7591416e4b",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/dustin/go-broadcast",
 			"repository": "https://github.com/dustin/go-broadcast",
 			"revision": "3bdf6d4a7164a50bc19d5f230e2981d87d2584f1",
@@ -33,6 +39,12 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/go-sql-driver/mysql",
+			"repository": "https://github.com/go-sql-driver/mysql",
+			"revision": "9dee4ca50b83acdf57a35fb9e6fb4be640afa2f3",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/golang/protobuf/proto",
 			"repository": "https://github.com/golang/protobuf",
 			"revision": "2bba0603135d7d7f5cb73b2125beeda19c09f4ef",
@@ -43,6 +55,24 @@
 			"importpath": "github.com/hashicorp/hcl",
 			"repository": "https://github.com/hashicorp/hcl",
 			"revision": "630949a3c5fa3c613328e1b8256052cbc2327c9b",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/jinzhu/gorm",
+			"repository": "https://github.com/jinzhu/gorm",
+			"revision": "45ccb134373e7d9fa76d5987a6fed6cd5a5adfd4",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/jinzhu/inflection",
+			"repository": "https://github.com/jinzhu/inflection",
+			"revision": "1c35d901db3da928c72a72d8458480cc9ade058f",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/lib/pq",
+			"repository": "https://github.com/lib/pq",
+			"revision": "2704adc878c21e1329f46f6e56a1c387d788ff94",
 			"branch": "master"
 		},
 		{
@@ -67,6 +97,12 @@
 			"importpath": "github.com/mattn/go-isatty",
 			"repository": "https://github.com/mattn/go-isatty",
 			"revision": "fc9e8d8ef48496124e79ae0df75490096eccf6fe",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/mattn/go-sqlite3",
+			"repository": "https://github.com/mattn/go-sqlite3",
+			"revision": "cf7286f069c3ef596efcc87781a4653a2e7607bd",
 			"branch": "master"
 		},
 		{
@@ -151,6 +187,13 @@
 			"revision": "cbc3d0884eac986df6e78a039b8792e869bff863",
 			"branch": "master",
 			"path": "/cast5"
+		},
+		{
+			"importpath": "golang.org/x/crypto/md4",
+			"repository": "https://go.googlesource.com/crypto",
+			"revision": "cbc3d0884eac986df6e78a039b8792e869bff863",
+			"branch": "master",
+			"path": "/md4"
 		},
 		{
 			"importpath": "golang.org/x/crypto/openpgp",

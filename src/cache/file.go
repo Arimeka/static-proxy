@@ -3,17 +3,24 @@ package cache
 import (
 	"errors"
 	"os"
+	"time"
 )
 
 var ErrDir = errors.New("Path is directory")
 
 type File struct {
+	ID uint `gorm:"primary_key"`
+
 	ContentType string
+	Size        int64
 	Filename    string
 
-	err error
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
-	file *os.File
+	err error `gorm:"-"`
+
+	file *os.File `gorm:"-"`
 }
 
 func (f *File) Open() error {

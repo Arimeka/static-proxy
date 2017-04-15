@@ -3,6 +3,7 @@ package cache
 import (
 	"constant"
 
+	"github.com/jinzhu/gorm"
 	"github.com/spf13/viper"
 
 	"fmt"
@@ -24,6 +25,8 @@ func NewSettings() (Settings, error) {
 	v.SetEnvPrefix("cache")
 	v.BindEnv("limit")
 	v.SetDefault("limit", 15<<(10*2)) // 15 MB
+	v.BindEnv("dir")
+	v.SetDefault("dir", "cache")
 
 	conf := &Settings{}
 	if err := v.Unmarshal(conf); err != nil {
@@ -31,10 +34,19 @@ func NewSettings() (Settings, error) {
 	}
 	conf.Env = env
 
+	db, err := NewDBConn()
+	if err != nil {
+		return *conf, fmt.Errorf("Failed connected to cache DB: %v", err)
+	}
+	conf.DB = db
+
 	return *conf, nil
 }
 
 type Settings struct {
 	Env          constant.ServerMode `mapstructure:"-"`
 	StorageLimit uint64              `mapstructure:"limit"`
+	CacheDir     string              `mapstructure:"dir"`
+
+	DB *gorm.DB `mapstructure:"-"`
 }
