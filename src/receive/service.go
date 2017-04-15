@@ -1,95 +1,60 @@
 package receive
 
 import (
+	"cache"
+
 	"gopkg.in/gin-gonic/gin.v1"
 
 	"context"
 	"net/http"
-	"time"
-	"errors"
-	"mime"
-	"path/filepath"
 )
 
-func NewService(dt time.Duration) Receiver {
-	return Receiver{
-		deadlineTimeout: dt,
-	}
+func NewService(settings Settings) Receiver {
+	return Receiver{settings}
 }
 
 type Receiver struct {
-	deadlineTimeout time.Duration
+	settings Settings
 }
 
 func (s Receiver) Serve(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), s.deadlineTimeout)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), s.settings.DeadlineTimeout)
 	defer cancel()
-
-	cn, ok := c.Writer.(http.CloseNotifier)
-	if !ok {
-		c.AbortWithError(http.StatusBadRequest, errors.New("Bad Request"))
-		return
-	}
 
 	filename := c.Param("filename")
 
-	res, err:= s.handle(ctx, cn, filename)
+	res, err := s.handle(ctx, filename)
 	if err != nil {
+		if err == context.Canceled {
+			return
+		}
+
 		var code int
 		if err == context.DeadlineExceeded {
 			code = http.StatusGatewayTimeout
-			c.HTML(code, "504.html",gin.H{})
+			c.HTML(code, "504.html", gin.H{})
 		} else {
 			code = http.StatusNotFound
-			c.HTML(code, "404.html",gin.H{})
+			c.HTML(code, "404.html", gin.H{})
 		}
 		c.AbortWithError(code, err)
 		return
 	}
 
+	c.Header("Content-Type", res.ContentType)
 	c.File(res.Filename)
 }
 
-func (s Receiver) handle(ctx context.Context, cn http.CloseNotifier, filename string) (*File, error) {
-	resCh := make(chan *File)
-	errCh := make(chan error)
-	go hardWork(ctx, resCh, errCh, filename)
+func (s Receiver) handle(ctx context.Context, filename string) (*cache.File, error) {
+	resCh := make(chan *cache.File)
+	cacheService := cache.NewService(s.settings.Cache, ctx, resCh, filename)
+
+	go cacheService.Serve()
 
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
-	case <-cn.CloseNotify():
-		return nil, errors.New("client closed connection")
-	case err := <-errCh:
-		return nil, err
 	case result := <-resCh:
-		return result, nil
-	}
-}
-
-// TODO заглушка
-func hardWork(ctx context.Context, responseChan chan *File, errorChan chan error , filename string) {
-	select {
-	// Если контекст уже завершился, завершаем работу
-	case <-ctx.Done():
-		return
-	default:
-	}
-
-	file := &File{
-		Filename: filepath.Join("./cache", filename),
-	}
-	file.ContentType = mime.TypeByExtension(file.Filename)
-
-	err := file.Open()
-	if err!= nil {
-		errorChan <- err
-		return
-	}
-	file.Close()
-
-	select {
-	case <-ctx.Done():
-	case responseChan <- file:
+		return result, result.Error()
 	}
 }
