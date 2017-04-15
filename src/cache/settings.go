@@ -10,6 +10,7 @@ import (
 	"os"
 	"storage"
 	"time"
+	"transform"
 )
 
 func NewSettings() (Settings, error) {
@@ -44,6 +45,12 @@ func NewSettings() (Settings, error) {
 	}
 	conf.Storage.CacheDir = conf.CacheDir
 
+	conf.Transform, err = transform.NewSettings()
+	if err != nil {
+		return *conf, err
+	}
+	conf.Transform.CacheDir = conf.CacheDir
+
 	db, err := NewDBConn()
 	if err != nil {
 		return *conf, fmt.Errorf("Failed connected to cache DB: %v", err)
@@ -71,7 +78,8 @@ type Settings struct {
 
 	ClearDuration time.Duration `mapstructure:"clear_duration"`
 
-	Storage storage.Settings `mapstructure:"-"`
-	DB      *gorm.DB         `mapstructure:"-"`
-	Stats   *Stats           `mapstructure:"-"`
+	Storage   storage.Settings   `mapstructure:"-"`
+	Transform transform.Settings `mapstructure:"-"`
+	DB        *gorm.DB           `mapstructure:"-"`
+	Stats     *Stats             `mapstructure:"-"`
 }

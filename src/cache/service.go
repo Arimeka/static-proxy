@@ -61,23 +61,39 @@ func (s Cache) getFile() *File {
 		return file
 	}
 
-	err := db.Where("filename = ?", file.Filename).Limit(1).Find(file).Error
+	err := db.Where("filename = ?", file.Filename).
+		Where("deleted <> ?", true).Limit(1).Find(file).Error
 	if err != nil {
+		s.settings.Stats.Mutex.Lock()
 		ff, err := s.getFromStorage()
 		if err != nil {
 			file.err = err
+			s.settings.Stats.Mutex.Unlock()
 			return file
 		}
 
 		if err = file.Parse(ff); err != nil {
 			file.err = err
+			s.settings.Stats.Mutex.Unlock()
 			return file
 		}
 
-		if err = db.Create(file).Error; err != nil {
-			file.err = err
-			return file
+		err = db.Where("filename = ?", file.Filename).Limit(1).Find(file).Error
+		if err != nil {
+			if err = db.Model(file).UpdateColumn("deleted", false).Error; err != nil {
+				file.err = err
+				s.settings.Stats.Mutex.Unlock()
+				return file
+			}
+			db.Model(file).UpdateColumn("updated_at", time.Now())
+		} else {
+			if err = db.Create(file).Error; err != nil {
+				file.err = err
+				s.settings.Stats.Mutex.Unlock()
+				return file
+			}
 		}
+		s.settings.Stats.Mutex.Unlock()
 
 	} else {
 		if file.Deleted {

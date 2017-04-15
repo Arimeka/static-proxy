@@ -215,6 +215,12 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/tj/go-debug",
+			"repository": "https://github.com/tj/go-debug",
+			"revision": "ff4a55a20a86994118644bbddc6a216da193cc13",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/ugorji/go/codec",
 			"repository": "https://github.com/ugorji/go",
 			"revision": "708a42d246822952f38190a8d8c4e6b16a0e600c",
@@ -301,6 +307,12 @@
 			"importpath": "gopkg.in/go-playground/validator.v8",
 			"repository": "https://gopkg.in/go-playground/validator.v8",
 			"revision": "5f57d2222ad794d0dffb07e664ea05e2ee07d60c",
+			"branch": "master"
+		},
+		{
+			"importpath": "gopkg.in/h2non/bimg.v1",
+			"repository": "https://gopkg.in/h2non/bimg.v1",
+			"revision": "9bb3ae10c5ce30e72f7ac0834368536fc095d6a7",
 			"branch": "master"
 		},
 		{
